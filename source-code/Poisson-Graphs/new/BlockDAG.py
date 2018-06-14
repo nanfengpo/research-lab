@@ -66,9 +66,10 @@ class BlockDAG(object):
                 obs.append(self.blocks[x].timestamp)
                 touched.append(x)  # Include the timestamp and mark that we've touched this block
                 if j + 1 < self.params["depth"]:
-                    for parentID in self.blocks[x].parents:
-                        if parentID not in touched:
-                            q.append((parentID, j + 1))  # Put parents into the queue if they aren't too deep.
+                    if self.blocks[x].parents is not None:
+                        for parentID in self.blocks[x].parents:
+                            if parentID not in touched:
+                                q.append((parentID, j + 1))  # Put parents into the queue if they aren't too deep.
 
         order_stats = sorted(obs)  # Sort the timestamps
         # Compute the pairwise differences

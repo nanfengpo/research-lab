@@ -52,7 +52,9 @@ class Node(object):
         for edge_id in self.edges:
             ed = self.edges[edge_id]
             delay = ed.length
-            ed.incoming.append([delay, b])
+            incoming_block_ids = [x[1].block_id for x in ed.incoming]
+            if b.block_id not in incoming_block_ids:
+                ed.incoming.append([delay, b])
 
 
 class Edge(object):
@@ -71,15 +73,23 @@ class Edge(object):
 
     def push(self, inp):
         [dt, b] = [None, None]
-        if len(self.incoming) > 0:
-            self.incoming = sorted(self.incoming, key=lambda x:x[0])
-            [dt, b] = self.incoming[0]
-            if len(self.incoming) > 1:
-                self.incoming = self.incoming[1:]
-            else:
-                self.incoming = []
-            new_block_params = {"block ID": b.block_id, "timestamp": b.timestamp, "parents": b.parents}
-            self.target.find_block(new_block_params, relay=True)
+        if self.incoming is not None:
+            if len(self.incoming) > 0:
+                for i in range(len(self.incoming)):
+                    inc = self.incoming[i]
+                    if inc[1].block_id == inp["block ID"]:
+                        [dt,b] = inc
+                        idx = i
+                if len(self.incoming) > 1:
+                    temp = self.incoming
+                    left = temp[:idx]
+                    right = temp[idx+1:]
+                    self.incoming = left + right
+                else:
+                    self.incoming = []
+                if b.block_id not in self.target.block_dag.blocks:
+                    new_block_params = {"block ID": b.block_id, "timestamp": b.timestamp, "parents": b.parents}
+                    self.target.find_block(new_block_params, relay=True)
         return [dt, b]
 
 
