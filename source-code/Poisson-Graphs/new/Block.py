@@ -6,10 +6,13 @@ import unittest
 
 class Block(object):
     def __init__(self, inp):
-        if inp["block ID"] is None:
-            self.block_id = hash(time() + random())
+        if "block ID" in inp:
+            if inp["block ID"] is None:
+                self.block_id = hash(time() + random())
+            else:
+                self.block_id = deepcopy(inp["block ID"])
         else:
-            self.block_id = deepcopy(inp["block ID"])
+            self.block_id = hash(time() + random())
         self.timestamp = deepcopy(inp["timestamp"])
         self.parents = deepcopy(inp["parents"]) # list of block IDs
         self.difficulty = deepcopy(inp["difficulty"])
@@ -95,5 +98,5 @@ class TestBlock(unittest.TestCase):
         self.assertTrue(this_block.parents is None)
 
 
-suite = unittest.TestLoader().loadTestsFromTestCase(TestBlock)
-unittest.TextTestRunner(verbosity=1).run(suite)
+#suite = unittest.TestLoader().loadTestsFromTestCase(TestBlock)
+#unittest.TextTestRunner(verbosity=1).run(suite)

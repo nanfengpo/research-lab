@@ -50,24 +50,20 @@ class BlockDAG(object):
                             for parent_id in next_block.parents:
                                 q.append(parent_id)
                 results.append([s, opt])
-            #print(results)
-            results = sorted(results, key=lambda x:x[0])
-            i = 1
-            next_candidate = results[-1]
-            top_score = next_candidate[0]
+            assert len(results) > 1
+            results = sorted(results, key=lambda x:-x[0])
             candidates = []
-            while next_candidate[0] == top_score:
-                candidates.append(next_candidate)
-                i += 1
-                next_candidate = results[-i]
-            if len(candidates) > 1:
-                parents = [choice(candidates)]
-            else:
-                parents = [candidates[0]]
+            top_score = results[0][0]
+            candidates.append(results[0][1])
+            results = results[1:]
+            while len(results) > 0 and top_score == results[0][0]:
+                    candidates.append(results[0][1])
+                    results = results[1:]
+            parents = [choice(candidates)]
         elif self.params["parent selection"]=="Spectre":
             parents = deepcopy(list(self.leaves.keys()))
 
-        inpp = {"block ID": None, "timestamp": timestamp, "parents": parents, "difficulty": deepcopy(self.next_difficulty)}
+        inpp = {"timestamp": timestamp, "parents": parents, "difficulty": deepcopy(self.next_difficulty)}
         output = Block(inpp)
         self.add_block(output)
 
@@ -252,7 +248,6 @@ class TestBlockDAG(unittest.TestCase):
         self.assertTrue(len(block_dag.blocks), 2)
         old_diff = block_dag.next_difficulty
 
-
         b = block_dag.new_block({"block ID": None, "timestamp": 3.0*dT, "parents": test_parent_set, "difficulty": block_dag.next_difficulty})
         self.assertEqual(b.timestamp, 3.0*dT)
         self.assertEqual(b.parents, a.parents)
@@ -279,9 +274,6 @@ class TestBlockDAG(unittest.TestCase):
         self.assertEqual(d.parents, c.parents)
         self.assertEqual(block_dag.next_difficulty, 1.0/1.5*old_diff)
         self.assertTrue(len(block_dag.blocks), 5)
-
-
-
 
 
     def test_bd(self):
@@ -355,5 +347,5 @@ class TestBlockDAG(unittest.TestCase):
         self.assertTrue(err < 1e-12)
 
 
-suite = unittest.TestLoader().loadTestsFromTestCase(TestBlockDAG)
-unittest.TextTestRunner(verbosity=1).run(suite)
+#suite = unittest.TestLoader().loadTestsFromTestCase(TestBlockDAG)
+#unittest.TextTestRunner(verbosity=1).run(suite)
