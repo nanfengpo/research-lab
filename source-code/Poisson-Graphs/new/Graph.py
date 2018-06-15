@@ -22,7 +22,7 @@ class Graph(object):
 
     def _initialize(self):
         for i in range(self.params["initial population"]):
-            block_dag_params = {"difficulty update period":5, "target median inter-arrival wait time": 60.0, "depth": 3}
+            block_dag_params = {"difficulty update period": 5, "target median inter-arrival wait time": 60.0, "depth": 3, "parent selection": "Bitcoin"}
             node_params = {"node ID": None, "clockshift": 0.0, "hashrate": 1.0, "edge dict":{}, "blockdag parameters": block_dag_params}
             x = Node(inp=node_params)
             self.nodes.update({x.node_id: x})
@@ -49,7 +49,7 @@ class Graph(object):
                 this_node.edges.update({ed.edge_id: ed})
 
         # To avoid problems, we ensure everyone has the same genesis block at self.clock = 0.0
-        genesis_params = {"block ID": None, "timestamp": self.clock, "parents": None}
+        genesis_params = {"block ID": None, "timestamp": self.clock, "parents": None, "difficulty": 1.0}
         rand_node_id = choice(list(self.nodes.keys()))
         rand_node = self.nodes[rand_node_id]
         b = rand_node.find_block(genesis_params, relay=False)
@@ -178,10 +178,12 @@ class Graph(object):
                             if ed.incoming is not None:
                                 if len(ed.incoming) > 0:
                                     for i in range(len(ed.incoming)):
-                                        inc = ed.incoming[i]
-                                        if inc[0] <= 0.0:
-                                            next_event = "push," + str(node_id) + "," + str(edge_id) + "," + str(inc[1].block_id)
-                                            transcript_entry += self.push_block(next_event) + ", "
+                                        if i < len(ed.incoming):
+                                            inc = ed.incoming[i]
+                                            assert inc[1].block_id in node.block_dag.blocks
+                                            if inc[0] <= 0.0:
+                                                next_event = "push," + str(node_id) + "," + str(edge_id) + "," + str(inc[1].block_id)
+                                                transcript_entry += self.push_block(next_event) + ", "
                     transcript_entry += "]"
                     line += "push_block, " + transcript_entry
                 else:
@@ -200,7 +202,7 @@ class Graph(object):
         k = self.params["number of outgoing connections"]
         output = ""
         if event is not None:
-            block_dag_params = {"difficulty update period": 5, "target median inter-arrival wait time": 60.0, "depth": 3}
+            block_dag_params = {"difficulty update period": 5, "target median inter-arrival wait time": 60.0, "depth": 3, "parent selection": "Bitcoin"}
             node_params = {"node ID": None, "clockshift": 0.0, "hashrate": 1.0, "edge dict": {}, "blockdag parameters": block_dag_params}
             this_node = Node(inp=node_params)
             self.nodes.update({this_node.node_id: this_node})
@@ -287,7 +289,7 @@ class Graph(object):
 
         output += "Node with ID " + str(node_id) + " found a new block with block ID " + str(b.block_id) + " and timestamp "
         if b.parents is not None:
-            parent_list = str(list(b.parents.keys()))
+            parent_list = str(b.parents)
         else:
             parent_list = "None"
         output += str(b.timestamp) + " and parents " + parent_list
@@ -298,24 +300,29 @@ class Graph(object):
         output = ""
 
         [node_id, edge_id, block_id] = event[5:].split(",")
-        node = self.nodes[int(node_id)]
-        ed = node.edges[int(edge_id)]
+        node_id  =  int(node_id)
+        edge_id  =  int(edge_id)
+        block_id = int(block_id)
+        assert node_id in self.nodes
+        node = self.nodes[node_id]
+        assert edge_id in node.edges
+        ed = node.edges[edge_id]
+        assert block_id in node.block_dag.blocks
+        assert block_id in [x[1].block_id for x in ed.incoming]
         block = node.block_dag.blocks[block_id]
         target_node_id = ed.target.node_id
         target_node = self.nodes[target_node_id]
 
-        (dummy_t, new_block) = (None, None)
-
         for i in range(len(ed.incoming)):
             inc = ed.incoming[i]
             if inc[1].block_id == block_id:
-                print("bloop")
-                (dummy_t, new_block) = ed.push({"timestamp": self.clock, "block ID": block_id})
-        assert new_block is not None
+                [dummy_t, new_block] = ed.push({"timestamp": self.clock, "block ID": block_id})
+                break
+
         output += "Node with ID " + str(node_id) + " finished transmitting a block with block ID " + str(new_block.block_id)
         output += " and timestamp " + str(new_block.timestamp) + " and parents "
         if new_block.parents is not None:
-            output += str(list(new_block.parents.keys()))
+            output += str(new_block.parents)
         else:
             output += "None"
         output += " across edge with ID " + str(edge_id) + " to target node with ID " + str(target_node_id)

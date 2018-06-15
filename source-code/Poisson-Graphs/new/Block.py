@@ -11,19 +11,30 @@ class Block(object):
         else:
             self.block_id = deepcopy(inp["block ID"])
         self.timestamp = deepcopy(inp["timestamp"])
-        self.parents = deepcopy(inp["parents"]) # list of block label/IDs
+        self.parents = deepcopy(inp["parents"]) # list of block IDs
+        self.difficulty = deepcopy(inp["difficulty"])
 
 
 class TestBlock(unittest.TestCase):
     def test_block(self):
+        # All the creation of a block does is establish some data for that block.
+        b = Block({"block ID": None, "timestamp": 1.0, "parents": ["rachel", "ethel"], "difficulty": 1.0})
+        c = Block({"block ID": "alice", "timestamp": 2.0, "parents": [b.block_id], "difficulty": 1.0})
+        self.assertEqual(c.block_id, "alice")
+        self.assertEqual(b.parents, ["rachel", "ethel"])
+        self.assertEqual(b.timestamp, 1.0)
+        self.assertEqual(c.timestamp, 2.0)
+        self.assertEqual(c.parents, [b.block_id])
+
+    def test_rudimentary_blockdag(self):
         real_inter_arrival_time = 100.0
         blocks = {}
 
-        genesis_params = {"block ID": None, "timestamp": 0.0, "parents": None}
+        genesis_params = {"block ID": None, "timestamp": 0.0, "parents": None, "difficulty": 1.0}
         g = Block(genesis_params)
         blocks.update({g.block_id: g})
 
-        next_block_params = {"block ID": None, "timestamp": real_inter_arrival_time, "parents": [g.block_id]}
+        next_block_params = {"block ID": None, "timestamp": real_inter_arrival_time, "parents": [g.block_id], "difficulty": 1.0}
         b = Block(next_block_params)
         blocks.update({b.block_id: b})
 
