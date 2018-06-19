@@ -40,9 +40,11 @@ class Node(object):
         u = -1.0 * log(u)
         return u * self.block_dag.next_difficulty / self.params["hashrate"]
 
-    def find_block(self, inp, relay=True):
+    def find_block(self, inp, relay=True, genesis=False):
+        if not genesis:
+            assert inp["timestamp"] > 0.0
         if len(inp) == 1:
-            tprime = inp["timestamp"] + self.params["clockshift"]
+            tprime = inp["timestamp"]
             b = self.block_dag.generate_new_block({"timestamp": tprime})
         else:
             b = self.block_dag.new_block(inp)
@@ -54,9 +56,15 @@ class Node(object):
         for edge_id in self.edges:
             ed = self.edges[edge_id]
             delay = ed.length
-            incoming_block_ids = [x[1].block_id for x in ed.incoming]
-            if b.block_id not in incoming_block_ids and b.block_id not in ed.target.block_dag.blocks:
+            assert delay > 0.0
+            if len(ed.incoming) > 0:
+                incoming_block_ids = [x[1].block_id for x in ed.incoming]
+                if b.block_id not in incoming_block_ids and b.block_id not in ed.target.block_dag.blocks:
+                    ed.incoming.append([delay, b])
+            else:
                 ed.incoming.append([delay, b])
+
+
 
 
 class Edge(object):
@@ -77,26 +85,21 @@ class Edge(object):
         self.incoming = []
 
     def push_all(self):
-        result = ""
+        result = None
         if self.incoming is not None:
             if len(self.incoming) > 0:
-                self.incoming = sorted(self.incoming, key=lambda x: x[0])
-                entry = self.incoming[0]
-                time_of_entry = entry[0]
-                if time_of_entry <= 0.0:
-                    new_incoming = []
-                    for entry in self.incoming:
-                        inc_time = entry[0]
-                        inc_block = entry[1]
-                        if inc_time <= 0.0:
-                            result += str(self.source.node_id) + "," + str(self.edge_id) + "," + str(inc_block.block_id) + ",,"
-                            if inc_block.block_id not in self.target.block_dag.blocks:
-                                find_block_inp = {"block ID": inc_block.block_id, "timestamp": inc_block.timestamp, "parents": inc_block.parents}
-                                self.target.find_block(find_block_inp, relay=True)
-                        else:
-                            new_incoming.append([inc_time, inc_block])
-                    self.incoming = deepcopy(new_incoming)
-
+                new_incoming = []
+                for entry in self.incoming:
+                    inc_time = entry[0]
+                    inc_block = entry[1]
+                    if inc_time == 0.0:
+                        result = inc_block.block_id
+                        if inc_block.block_id not in self.target.block_dag.blocks:
+                            find_block_inp = {"block ID": inc_block.block_id, "timestamp": inc_block.timestamp, "parents": inc_block.parents}
+                            self.target.find_block(find_block_inp, relay=True)
+                    else:
+                        new_incoming.append([inc_time, inc_block])
+                self.incoming = deepcopy(new_incoming)
         for entry in self.incoming:
             assert entry[0] > 0.0
         return result
@@ -221,8 +224,8 @@ class TestNodesAndEdges(unittest.TestCase):
 
         edge_params = {"edge ID": None, "source": alice, "target": bob, "length": 30.0}
         ed = Edge(edge_params)
-        alice.edges.update({ed.edge_id:ed})
-        genesis_block = alice.find_block(inp={"block ID": None, "timestamp": 0.0, "parents": None}, relay=True)
+        alice.edges.update({ed.edge_id: ed})
+        genesis_block = alice.find_block(inp={"block ID": None, "timestamp": 0.0, "parents": None}, relay=True, genesis=True)
         self.assertTrue(len(ed.incoming)==1)
         [dt, b] = ed.incoming[0]
         self.assertEqual(genesis_block.block_id, b.block_id)
@@ -233,7 +236,14 @@ class TestNodesAndEdges(unittest.TestCase):
         self.assertTrue(len(ed.incoming)==0)
         self.assertTrue(genesis_block.block_id in bob.block_dag.blocks)
 
+        a = alice.find_block(inp={"block ID": None, "timestamp": 1.0, "parents": [genesis_block.block_id]}, relay=True)
+        self.assertTrue(len(ed.incoming)==1)
+        b = alice.find_block(inp={"block ID": None, "timestamp": 2.0, "parents": [a.block_id]}, relay=True)
+        self.assertTrue(len(ed.incoming)==2)
+        ed.incoming[0][0] = 0.0
+        ed.push_all()
+        self.assertTrue(len(ed.incoming)==1)
 
 
-#suite = unittest.TestLoader().loadTestsFromTestCase(TestNodesAndEdges)
-#unittest.TextTestRunner(verbosity=1).run(suite)
+suite = unittest.TestLoader().loadTestsFromTestCase(TestNodesAndEdges)
+unittest.TextTestRunner(verbosity=1).run(suite)
