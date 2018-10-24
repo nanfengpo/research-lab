@@ -2,13 +2,14 @@
 
 package how.monero.hodl.bulletproof;
 
-import how.monero.hodl.crypto.Curve25519Point;
-import how.monero.hodl.crypto.Scalar;
-import how.monero.hodl.crypto.CryptoUtil;
+// how.monero.hodl就是上级目录
+import how.monero.hodl.crypto.Curve25519Point; // 椭圆曲线上的点相关的类。Curve25519Point的一个对象就表示椭圆曲线上的一个点
+import how.monero.hodl.crypto.Scalar; // 标量相关的类。Scalar的一个对象就是一个标量。
+import how.monero.hodl.crypto.CryptoUtil; // 通用加密
 import java.math.BigInteger;
 import java.util.Random;
 
-import static how.monero.hodl.crypto.Scalar.randomScalar;
+import static how.monero.hodl.crypto.Scalar.randomScalar; // 生成随机标量
 import static how.monero.hodl.crypto.CryptoUtil.*;
 import static how.monero.hodl.util.ByteUtil.*;
 
@@ -16,11 +17,12 @@ public class Bulletproof
 {
     private static int NEXP;
     private static int N;
-    private static Curve25519Point G;
-    private static Curve25519Point H;
-    private static Curve25519Point[] Gi;
-    private static Curve25519Point[] Hi;
+    private static Curve25519Point G; // 第1个生成点
+    private static Curve25519Point H; // 第2个生成点
+    private static Curve25519Point[] Gi; // G生成的点的列表
+    private static Curve25519Point[] Hi; // H生成的点的列表
 
+    // 一个简单的结构体，用于验证。里面就是一些椭圆曲线点和标量，唯一的成员函数就是构造函数。
     public static class ProofTuple
     {
         private Curve25519Point V[];
@@ -58,11 +60,11 @@ public class Bulletproof
     {
         assert a.length == b.length;
 
-        Curve25519Point Result = Curve25519Point.ZERO;
+        Curve25519Point Result = Curve25519Point.ZERO; // Result初始为椭圆零点
         for (int i = 0; i < a.length; i++)
         {
-            Result = Result.add(Gi[i].scalarMultiply(a[i]));
-            Result = Result.add(Hi[i].scalarMultiply(b[i]));
+            Result = Result.add(Gi[i].scalarMultiply(a[i])); // 椭圆点运算：Result = Result + (Gi[i] * a[i])
+            Result = Result.add(Hi[i].scalarMultiply(b[i])); // 椭圆点运算：Result = Result + (Hi[i] * b[i])
         }
         return Result;
     }
@@ -619,8 +621,8 @@ public class Bulletproof
         int PROOFS = 5; // number of proofs in batch
 
         // Set the curve base points
-        G = Curve25519Point.G;
-        H = Curve25519Point.hashToPoint(G);
+        G = Curve25519Point.G; // 第1个生成点
+        H = Curve25519Point.hashToPoint(G); // 第2个生成点。根据G的哈希生成。
         int MAXM = (int) Math.pow(2,MAXEXP);
         Gi = new Curve25519Point[MAXM*N];
         Hi = new Curve25519Point[MAXM*N];
